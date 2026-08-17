@@ -1,4 +1,7 @@
 # agent.py
+import random
+from collections import deque
+import heapq
 class GreedyGridAgent:
     """A simple agent that tries to move around systematically to clear the grid."""
 
@@ -77,4 +80,93 @@ class ModelBasedAgent:
             action = 'move_forward'
             
         self.last_action = action
-        return action
+        return action
+
+
+class SearchAgent:
+    """A Search Agent that uses BFS, DFS, or UCS to find the shortest path to food."""
+    def __init__(self):
+        self.plan = []
+        self.active_algo = 'BFS'
+
+    def sense_and_act(self, percept: dict) -> str:
+        if not self.plan:
+            food_targets = percept['all_food']
+            if not food_targets:
+                return 'Stay'
+
+            start_pos = percept['agent_pos']
+            # Find closest food using Manhattan distance
+            closest_food = min(food_targets, key=lambda f: abs(f[0]-start_pos[0]) + abs(f[1]-start_pos[1]))
+            
+            if self.active_algo == 'BFS':
+                self.plan = self.bfs_search(start_pos, closest_food, percept['walls'], percept['grid_size'])
+            elif self.active_algo == 'DFS':
+                self.plan = self.dfs_search(start_pos, closest_food, percept['walls'], percept['grid_size'])
+            elif self.active_algo == 'UCS':
+                self.plan = self.ucs_search(start_pos, closest_food, percept['walls'], percept['grid_size'])
+                
+        if self.plan:
+            return self.plan.pop(0)
+        return 'Stay'
+
+    def get_successors(self, pos, walls, grid_size):
+        x, y = pos
+        w, h = grid_size
+        successors = []
+        moves = {'Up': (x, y+1), 'Down': (x, y-1), 'Left': (x-1, y), 'Right': (x+1, y)}
+        for action, (nx, ny) in moves.items():
+            if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in walls:
+                successors.append((action, (nx, ny)))
+        return successors
+
+    def bfs_search(self, start, goal, walls, grid_size):
+        walls = set(walls)
+        queue = deque([(start, [])])
+        reached = {start}
+        while queue:
+            curr, path = queue.popleft()
+            if curr == goal:
+                return path + ['suck']
+            for action, nxt in self.get_successors(curr, walls, grid_size):
+                if nxt not in reached:
+                    reached.add(nxt)
+                    queue.append((nxt, path + [action]))
+        return []
+
+    def dfs_search(self, start, goal, walls, grid_size):
+        walls = set(walls)
+        stack = [(start, [])]
+        reached = {start}
+        while stack:
+            curr, path = stack.pop()
+            if curr == goal:
+                return path + ['suck']
+            for action, nxt in self.get_successors(curr, walls, grid_size):
+                if nxt not in reached:
+                    reached.add(nxt)
+                    stack.append((nxt, path + [action]))
+        return []
+
+    def ucs_search(self, start, goal, walls, grid_size):
+        walls = set(walls)
+        pq = [(0, start, [])]
+        reached = {start: 0}
+        
+        while pq:
+            cost, curr, path = heapq.heappop(pq)
+            
+            # Skip if we already found a shorter path to this node
+            if cost > reached.get(curr, float('inf')):
+                continue
+                
+            if curr == goal:
+                return path + ['suck']
+                
+            for action, nxt in self.get_successors(curr, walls, grid_size):
+                new_cost = cost + 1
+                if nxt not in reached or new_cost < reached[nxt]:
+                    reached[nxt] = new_cost
+                    heapq.heappush(pq, (new_cost, nxt, path + [action]))
+        return []
+

@@ -74,7 +74,11 @@ class VisualGridHuntGame:
             'food_here': tuple(self.agent_pos) in self.food_positions,
             'collision': self.collision,
             'score': self.score,
-            'remaining_food': len(self.food_positions)
+            'remaining_food': len(self.food_positions),
+            'grid_size': (self.width, self.height),
+            'walls': list(self.walls),
+            'all_food': list(self.food_positions),
+            'agent_pos': tuple(self.agent_pos)
         }
 
     def execute_action(self, action: str):
@@ -265,7 +269,7 @@ if __name__ == "__main__":
     # Try a larger grid size like 12x12 with 15 food and 3 opponents!
     # To test the failure of the simple reflex agent, comment out ModelBasedAgent and uncomment SimpleReflexAgent.
     # test_agent = agent.SimpleReflexAgent()
-    test_agent = agent.ModelBasedAgent()
+    test_agent = agent.SearchAgent()
     
     app = GridGameGUI(root, width=12, height=12, num_food=15, num_opponents=0, agent=test_agent)
     root.mainloop()

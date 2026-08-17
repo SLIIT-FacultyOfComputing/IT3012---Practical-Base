@@ -84,7 +84,9 @@ class ModelBasedAgent:
 
 
 class SearchAgent:
-    """A Search Agent that uses BFS, DFS, or UCS to find the shortest path to food."""
+    """
+    agent that try to use bfs and dfs to find the shortest path to food.
+    """
     def __init__(self):
         self.plan = []
         self.active_algo = 'BFS'

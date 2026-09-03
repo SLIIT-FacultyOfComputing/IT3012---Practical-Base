@@ -55,7 +55,7 @@ class VisualGridHuntGame:
         self.collision = False
 
     def get_percept(self) -> dict:
-        """Step 1.1: Exposes global search environment model to the agent."""
+        """Exposes local sensors + global search environment model to the agent."""
         x, y = self.agent_pos
         
         dir_offsets = {
@@ -72,9 +72,9 @@ class VisualGridHuntGame:
 
         return {
             'agent_pos': list(self.agent_pos),
-            'grid_size': (self.width, self.height),      # Step 1.1
-            'walls': list(self.walls),                    # Step 1.1
-            'all_food': list(self.food_positions),        # Step 1.1
+            'grid_size': (self.width, self.height),
+            'walls': list(self.walls),
+            'all_food': list(self.food_positions),
             'opponent_positions': [list(op) for op in self.opponents],
             'wall_ahead': wall_ahead,
             'food_here': tuple(self.agent_pos) in self.food_positions,
@@ -114,7 +114,7 @@ class VisualGridHuntGame:
             self.food_positions.remove(tuple_pos)
             self.score += 20
 
-        # Opponent moves
+        # Move adversarial opponents randomly
         for op in self.opponents:
             move = random.choice(['Up', 'Down', 'Left', 'Right', 'Stay'])
             if move == 'Up' and op[1] < self.height - 1:
@@ -139,7 +139,7 @@ class GridGameGUI:
 
     def __init__(self, root, width=10, height=10, num_food=12, num_opponents=2, num_traps=4, walls=None):
         self.root = root
-        self.root.title("IT3012 - Lab 03: Classical Search (BFS / DFS / UCS)")
+        self.root.title("IT3012 - Lab 04: A* Search Agent")
 
         self.env = VisualGridHuntGame(width=width, height=height, num_food=num_food, 
                                      num_opponents=num_opponents, num_traps=num_traps, custom_walls=walls)
@@ -164,6 +164,7 @@ class GridGameGUI:
     def draw_grid(self):
         self.canvas.delete("all")
 
+        # Render walls and background grid
         for x in range(self.env.width):
             for y in range(self.env.height):
                 x1 = x * self.cell_size
@@ -193,7 +194,7 @@ class GridGameGUI:
                 fill="#8b5cf6", outline="#6d28d9"
             )
 
-        # Render food items
+        # Render food items (yellow circles)
         for fx, fy in self.env.food_positions:
             offset = self.cell_size * 0.25
             x1 = fx * self.cell_size + offset
@@ -201,7 +202,7 @@ class GridGameGUI:
             self.canvas.create_oval(x1, y1, x1 + self.cell_size * 0.5, y1 + self.cell_size * 0.5, fill="#f59e0b",
                                     outline="#d97706")
 
-        # Render opponents
+        # Render opponents (red squares)
         for ox, oy in self.env.opponents:
             offset = self.cell_size * 0.2
             x1 = ox * self.cell_size + offset
@@ -209,7 +210,7 @@ class GridGameGUI:
             self.canvas.create_rectangle(x1, y1, x1 + self.cell_size * 0.6, y1 + self.cell_size * 0.6, fill="#990000",
                                          outline="#7a0000")
 
-        # Render agent
+        # Render agent (blue circle)
         ax, ay = self.env.agent_pos
         offset = self.cell_size * 0.15
         x1 = ax * self.cell_size + offset
@@ -224,8 +225,8 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = GridGameGUI(root, width=12, height=12, num_food=15, num_opponents=2, num_traps=4)
 
-    # Change between 'BFS', 'DFS', and 'UCS' to observe different path behaviors
-    agent = SearchAgent(algo='BFS')
+    # Injected SearchAgent running A* with Manhattan distance heuristic
+    agent = SearchAgent(algo='AStar', heuristic_type='manhattan')
 
     def run_search_loop():
         app.btn.config(state="disabled")
@@ -237,7 +238,9 @@ if __name__ == "__main__":
                 app.env.execute_action(action)
 
                 app.draw_grid()
-                app.label.config(text=f"Score: {app.env.score} | Steps: {app.env.steps} | Algo: {agent.active_algo} | Action: {action}")
+                app.label.config(
+                    text=f"Score: {app.env.score} | Steps: {app.env.steps} | Algo: {agent.active_algo} | Action: {action}"
+                )
                 app.root.after(200, step)
             else:
                 end_text = f"Collision! Game Over! Final Score: {app.env.score}" if app.env.collision else f"Finished! Final Score: {app.env.score}"

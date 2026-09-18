@@ -3,6 +3,8 @@ import math
 import random
 from collections import deque
 
+from logic_engine import KnowledgeBase
+
 
 class GreedyGridAgent:
     """A simple agent that tries to move around systematically to clear the grid."""
@@ -48,6 +50,9 @@ class SearchAgent:
         self.active_algo = 'UCS'
         self.position = (0, 0)
         self.dir_idx = 0
+        self.kb = KnowledgeBase()
+        self.kb.tell_rule(['TargetVisible', 'HasDust'], 'SafeToEngage')
+        self.kb.tell_rule(['SafeToEngage', 'BloodseekerMissing'], 'Retreat')
 
     def manhattan_distance(self, pos, goal):
         return abs(pos[0] - goal[0]) + abs(pos[1] - goal[1])
@@ -77,6 +82,25 @@ class SearchAgent:
             path.append(action)
         path.reverse()
         return path
+
+    def _tile_facts(self, tile_percepts, position):
+        """Return facts for a tile from a mapping or percept callback."""
+        if tile_percepts is None:
+            return []
+        if callable(tile_percepts):
+            percepts = tile_percepts(position)
+        else:
+            percepts = tile_percepts.get(position, [])
+        if isinstance(percepts, dict):
+            return [fact for fact, present in percepts.items() if present]
+        return percepts
+
+    def _is_feasible(self, position, tile_percepts):
+        self.kb.clear_facts()
+        for fact in self._tile_facts(tile_percepts, position):
+            self.kb.tell_fact(fact)
+        self.kb.forward_chain()
+        return 'Retreat' not in self.kb.facts
 
     def bfs_search(self, start, goal, walls, grid_size):
         frontier = deque([start])
@@ -128,7 +152,15 @@ class SearchAgent:
                     heapq.heappush(frontier, (new_cost, counter, next_state))
         return []
 
-    def astar_search(self, start_pos, goal_pos, walls, grid_size, heuristic_type='manhattan'):
+    def astar_search(
+        self,
+        start_pos,
+        goal_pos,
+        walls,
+        grid_size,
+        heuristic_type='manhattan',
+        tile_percepts=None,
+    ):
         heuristic = {
             'manhattan': self.manhattan_distance,
             'euclidean': self.euclidean_distance,
@@ -150,7 +182,9 @@ class SearchAgent:
             reached_states.add(current_pos)
 
             for action, next_pos in self._neighbors(current_pos, walls, grid_size):
-                if next_pos not in reached_states:
+                if next_pos not in reached_states and self._is_feasible(
+                    next_pos, tile_percepts
+                ):
                     new_g = g_cost + 1
                     new_f = new_g + heuristic(next_pos, goal_pos)
                     heapq.heappush(frontier, (new_f, new_g, next_pos, path_taken + [action]))
@@ -191,7 +225,13 @@ class SearchAgent:
             elif self.active_algo == 'UCS':
                 movement_path = self.ucs_search(self.position, goal, walls, percept['grid_size'])
             elif self.active_algo == 'AStar':
-                movement_path = self.astar_search(self.position, goal, walls, percept['grid_size'])
+                movement_path = self.astar_search(
+                    self.position,
+                    goal,
+                    walls,
+                    percept['grid_size'],
+                    tile_percepts=percept.get('tile_percepts'),
+                )
             else:
                 raise ValueError(f'Unknown algorithm: {self.active_algo}')
             self.plan = self._movement_to_actions(movement_path)

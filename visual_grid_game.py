@@ -26,6 +26,26 @@ class VisualGridHuntGame:
             if pos_tuple != (0, 0) and pos_tuple not in self.walls:
                 self.food_positions.add(pos_tuple)
 
+                # Generate toxic traps
+        self.toxic_traps = set()
+
+            num_traps = 5
+
+        while len(self.toxic_traps) < num_traps:
+
+         # Generate random x and y positions
+            tx = random.randint(0, self.width - 1)
+            ty = random.randint(0, self.height - 1)
+
+            trap_position = (tx, ty)
+
+        # Check if the position is safe
+        if (trap_position != (0, 0)
+            and trap_position not in self.walls
+            and trap_position not in self.food_positions):
+
+        self.toxic_traps.add(trap_position)
+
         # Generate adversarial opponents
         self.opponents = []
         while len(self.opponents) < num_opponents:
